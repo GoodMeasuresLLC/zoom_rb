@@ -32,7 +32,10 @@ module Zoom
       #
       # DELETE /meetings/{meetingId}/recordings
       def meeting_recordings_delete(*args)
-        raise Zoom::NotImplemented, 'meeting_recordings_delete is not yet implemented'
+        params = Zoom::Params.new(Utils.extract_options!(args))
+        params.require(:meeting_id)
+        params.require(:action)
+        Utils.parse_response self.class.delete("/meetings/#{params[:meeting_id]}/recordings", query: params, headers: request_headers)
       end
 
       # Delete one meeting recording file
@@ -134,6 +137,30 @@ module Zoom
         raise Zoom::NotImplemented, 'meeting_recordings_registrant_questions_update is not yet implemented'
       end
 
+      #
+      # Download a recording of a webinar
+      #
+      # https://marketplace.zoom.us/docs/api-reference/zoom-api/cloud-recording/recordingregistrantquestionupdate
+      #
+      # PATCH /meetings/{meetingId}/recordings/registrants/questions
+      def meeting_recordings_download_file(download_url, filename)
+        File.open(filename, "w") do |file|
+          response = HTTParty.get(download_url,
+            stream_body: true,
+            headers:{
+                      'Accept' => 'audio/mp4',
+                      'Content-Type' => 'audio/mp4',
+                      'Authorization' => "Bearer #{access_token}"
+                    }
+            ) do |fragment|
+            if fragment.code == 200
+              file.write(fragment)
+            else
+              raise StandardError, "Non-success status code while streaming #{fragment.code}"
+            end
+          end
+        end
+      end
     end
   end
 end
