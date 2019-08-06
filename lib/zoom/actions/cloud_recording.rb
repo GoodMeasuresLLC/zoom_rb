@@ -142,23 +142,24 @@ module Zoom
       #
       # https://marketplace.zoom.us/docs/api-reference/zoom-api/cloud-recording/recordingregistrantquestionupdate
       #
-      # PATCH /meetings/{meetingId}/recordings/registrants/questions
-      def meeting_recordings_download_file(download_url, filename)
-        File.open(filename, "w") do |file|
-          response = HTTParty.get(download_url,
+      # downloading the webinar records via the download url is only possible if:
+      # - you enable redirection
+      # - you use the JWT access token  - will not work with the Oauth token. This is a known bug in the API.
+      def meeting_recordings_download_file(download_url)
+        raise "You must use JWT client" unless self.class == Zoom::Clients::JWT
+        Tempfile.create do |file|
+          file.binmode
+          response = HTTParty.get("#{download_url}?access_token=#{access_token}",
             stream_body: true,
-            headers:{
-                      'Accept' => 'audio/mp4',
-                      'Content-Type' => 'audio/mp4',
-                      'Authorization' => "Bearer #{access_token}"
-                    }
+            follow_redirects: true
             ) do |fragment|
             if fragment.code == 200
               file.write(fragment)
-            else
+            elsif fragment.code != 302
               raise StandardError, "Non-success status code while streaming #{fragment.code}"
             end
           end
+          file.flush
         end
       end
     end
