@@ -147,20 +147,19 @@ module Zoom
       # - you use the JWT access token  - will not work with the Oauth token. This is a known bug in the API.
       def meeting_recordings_download_file(download_url)
         raise "You must use JWT client" unless self.class == Zoom::Clients::JWT
-        Tempfile.create do |file|
-          file.binmode
-          response = HTTParty.get("#{download_url}?access_token=#{access_token}",
-            stream_body: true,
-            follow_redirects: true
-            ) do |fragment|
-            if fragment.code == 200
-              file.write(fragment)
-            elsif fragment.code != 302
-              raise StandardError, "Non-success status code while streaming #{fragment.code}"
-            end
+        file=Tempfile.create
+        file.binmode
+        response = HTTParty.get("#{download_url}?access_token=#{access_token}",
+          stream_body: true,
+          follow_redirects: true
+          ) do |fragment|
+          if fragment.code == 200
+            file.write(fragment)
+          elsif fragment.code != 302
+            raise StandardError, "Non-success status code while streaming #{fragment.code}"
           end
-          file.flush
         end
+        file
       end
     end
   end
